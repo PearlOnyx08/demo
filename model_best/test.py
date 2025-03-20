@@ -10,18 +10,22 @@ import threading
 WATCH_DIR = "your_directory_path"  # Change this to the directory you want to watch
 
 class DirectoryTree(Tree):
+    """Tree widget that displays a directory structure."""
     path = reactive(WATCH_DIR)
 
     def on_mount(self):
+        """Build the tree when the widget mounts."""
         self.build_tree(self.path)
 
     def build_tree(self, path):
+        """Recursively add directories and files to the tree."""
         self.clear()
         root_node = self.root.add(os.path.basename(path), data=path)
         self.populate_tree(root_node, path)
         root_node.expand()
 
     def populate_tree(self, parent_node, path):
+        """Populate the tree with the contents of the directory."""
         try:
             for item in sorted(os.listdir(path)):
                 item_path = os.path.join(path, item)
@@ -54,16 +58,13 @@ class DirectoryTreeApp(App):
     CSS = "Tree { height: 100%; }"
 
     def compose(self) -> ComposeResult:
-        yield DirectoryTree("Directory")  # No need to assign it to self.tree
-
-    @property
-    def tree(self) -> DirectoryTree:
-        """Fetch the DirectoryTree widget dynamically."""
-        return self.query_one(DirectoryTree)
+        """Create the directory tree widget."""
+        yield DirectoryTree("Directory")  # No direct assignment to self.tree
 
     def refresh_tree(self):
         """Refresh the directory tree when changes occur."""
-        self.tree.refresh_tree()  # Now this works
+        tree = self.query_one(DirectoryTree)  # Dynamically fetch the tree
+        tree.refresh_tree()
 
     def watch_directory(self):
         """Run the watchdog observer in a separate thread."""
@@ -86,4 +87,3 @@ class DirectoryTreeApp(App):
 
 if __name__ == "__main__":
     DirectoryTreeApp().run()
-

@@ -1,5 +1,5 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Tree, Static
+from textual.widgets import Tree, Static, ScrollView
 from textual.reactive import reactive
 from textual.containers import Horizontal
 from watchdog.observers import Observer
@@ -51,18 +51,23 @@ class DirectoryTree(Tree):
             self.app.show_file_content(file_path)  # Call the app method
 
 
-class CodeViewer(Static):
-    """Widget to display syntax-highlighted code."""
+class CodeViewer(ScrollView):
+    """Scrollable widget to display syntax-highlighted code."""
     
     def update_content(self, file_path):
         """Update the content of the code viewer."""
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 code = f.read()
-            syntax = Syntax(code, file_path.split(".")[-1], theme="monokai", line_numbers=True)
-            self.update(syntax)  # Display the syntax-highlighted code
+            
+            # Extract file extension for proper syntax highlighting
+            file_extension = file_path.split(".")[-1]
+            
+            # Display the syntax-highlighted code inside the ScrollView
+            self.update(Syntax(code, file_extension, theme="monokai", line_numbers=True))
+
         except Exception as e:
-            self.update(f"Error loading file: {e}")  # Display error message if file cannot be read
+            self.update(f"[red]Error loading file: {e}[/red]")  # Display error message
 
 
 class DirectoryWatcher(FileSystemEventHandler):
@@ -77,6 +82,8 @@ class DirectoryWatcher(FileSystemEventHandler):
 
 
 class DirectoryTreeApp(App):
+    """Main application with directory tree and code viewer."""
+    
     CSS = """
     Horizontal {
         height: 100%;
@@ -86,7 +93,7 @@ class DirectoryTreeApp(App):
         width: 30%;
         border: solid green;
     }
-    Static {
+    ScrollView {
         width: 70%;
         border: solid blue;
         padding: 1;
@@ -94,10 +101,10 @@ class DirectoryTreeApp(App):
     """
 
     def compose(self) -> ComposeResult:
-        """Create the UI with a directory tree and a code viewer."""
+        """Create the UI layout."""
         with Horizontal():
-            yield DirectoryTree("Directory")  # File tree
-            yield CodeViewer()  # Code display window
+            yield DirectoryTree("Directory")  # Left side: File tree
+            yield CodeViewer()  # Right side: Code viewer
 
     def refresh_tree(self):
         """Refresh the directory tree when changes occur."""

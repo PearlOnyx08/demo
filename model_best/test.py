@@ -54,7 +54,7 @@ class DirectoryTreeApp(App):
     
     def compose(self) -> ComposeResult:
         self.tree = DirectoryTree("Directory")
-        return self.tree
+        yield self.tree  # Use yield instead of return
 
     def refresh_tree(self):
         """Refresh the directory tree when changes occur."""

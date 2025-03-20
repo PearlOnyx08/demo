@@ -46,19 +46,24 @@ class DirectoryWatcher(FileSystemEventHandler):
         self.app = app
 
     def on_any_event(self, event):
+        """Notify the app to refresh the tree when a file event occurs."""
         self.app.call_from_thread(self.app.refresh_tree)
 
 
 class DirectoryTreeApp(App):
     CSS = "Tree { height: 100%; }"
-    
+
     def compose(self) -> ComposeResult:
-        self.tree = DirectoryTree("Directory")
-        yield self.tree  # Use yield instead of return
+        yield DirectoryTree("Directory")  # No need to assign it to self.tree
+
+    @property
+    def tree(self) -> DirectoryTree:
+        """Fetch the DirectoryTree widget dynamically."""
+        return self.query_one(DirectoryTree)
 
     def refresh_tree(self):
         """Refresh the directory tree when changes occur."""
-        self.tree.refresh_tree()
+        self.tree.refresh_tree()  # Now this works
 
     def watch_directory(self):
         """Run the watchdog observer in a separate thread."""
@@ -81,3 +86,4 @@ class DirectoryTreeApp(App):
 
 if __name__ == "__main__":
     DirectoryTreeApp().run()
+

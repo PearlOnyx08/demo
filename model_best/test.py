@@ -1,8 +1,10 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Tree
+from textual.widgets import Tree, Static
 from textual.reactive import reactive
+from textual.containers import Horizontal
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from syntax import Syntax  # Importing Syntax for code highlighting
 import os
 import time
 import threading
@@ -42,6 +44,26 @@ class DirectoryTree(Tree):
         self.build_tree(self.path)
         self.refresh()
 
+    def on_node_selected(self, event):
+        """Handle file selection and display its contents."""
+        file_path = event.node.data
+        if os.path.isfile(file_path):  # If a file is selected
+            self.app.show_file_content(file_path)  # Call the app method
+
+
+class CodeViewer(Static):
+    """Widget to display syntax-highlighted code."""
+    
+    def update_content(self, file_path):
+        """Update the content of the code viewer."""
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                code = f.read()
+            syntax = Syntax(code, file_path.split(".")[-1], theme="monokai", line_numbers=True)
+            self.update(syntax)  # Display the syntax-highlighted code
+        except Exception as e:
+            self.update(f"Error loading file: {e}")  # Display error message if file cannot be read
+
 
 class DirectoryWatcher(FileSystemEventHandler):
     """Watches a directory and notifies the app when changes occur."""
@@ -56,21 +78,36 @@ class DirectoryWatcher(FileSystemEventHandler):
 
 class DirectoryTreeApp(App):
     CSS = """
-    Tree {
+    Horizontal {
         height: 100%;
         width: 100%;
+    }
+    Tree {
+        width: 30%;
         border: solid green;
+    }
+    Static {
+        width: 70%;
+        border: solid blue;
+        padding: 1;
     }
     """
 
     def compose(self) -> ComposeResult:
-        """Create the directory tree widget."""
-        yield DirectoryTree("Directory")  # No direct assignment to self.tree
+        """Create the UI with a directory tree and a code viewer."""
+        with Horizontal():
+            yield DirectoryTree("Directory")  # File tree
+            yield CodeViewer()  # Code display window
 
     def refresh_tree(self):
         """Refresh the directory tree when changes occur."""
-        tree = self.query_one(DirectoryTree)  # Dynamically fetch the tree
+        tree = self.query_one(DirectoryTree)
         tree.refresh_tree()
+
+    def show_file_content(self, file_path):
+        """Show the selected file's contents in the code viewer."""
+        viewer = self.query_one(CodeViewer)
+        viewer.update_content(file_path)
 
     def watch_directory(self):
         """Run the watchdog observer in a separate thread."""

@@ -55,7 +55,13 @@ class DirectoryWatcher(FileSystemEventHandler):
 
 
 class DirectoryTreeApp(App):
-    CSS = "Tree { height: 100%; }"
+    CSS = """
+    Tree {
+        height: 100%;
+        width: 100%;
+        border: solid green;
+    }
+    """
 
     def compose(self) -> ComposeResult:
         """Create the directory tree widget."""

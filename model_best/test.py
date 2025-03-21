@@ -19,7 +19,7 @@ class DirectoryTree(Tree):
     def on_mount(self):
         """Build the tree when the widget mounts."""
         self.build_tree(self.path)
-        self.expand_all()
+        self.expand_all_nodes(self.root)  # Corrected: Manually expand nodes
 
     def build_tree(self, path):
         """Recursively add directories and files to the tree."""
@@ -27,6 +27,7 @@ class DirectoryTree(Tree):
         root_node = self.root.add(os.path.basename(path), data=path)
         self.populate_tree(root_node, path)
         root_node.expand()
+        self.expand_all_nodes(root_node)  # Expand all subdirectories
 
     def populate_tree(self, parent_node, path):
         """Populate the tree with the contents of the directory."""
@@ -41,11 +42,15 @@ class DirectoryTree(Tree):
         except PermissionError:
             pass  # Ignore inaccessible directories
 
+    def expand_all_nodes(self, node):
+        """Recursively expand all nodes in the tree."""
+        node.expand()
+        for child in node.children:
+            self.expand_all_nodes(child)  # Recursively expand subnodes
+
     def refresh_tree(self):
         """Rebuild the tree when changes occur."""
         self.build_tree(self.path)
-        self.expand_all()
-        self.refresh()
 
     def on_node_selected(self, event):
         """Handle file selection and update inline code preview."""

@@ -1,7 +1,7 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Tree, Static, ScrollView
+from textual.widgets import Tree, ScrollView, Label
 from textual.reactive import reactive
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from syntax import Syntax  # Importing Syntax for code highlighting
@@ -11,6 +11,7 @@ import threading
 
 WATCH_DIR = "your_directory_path"  # Change this to the directory you want to watch
 
+### 📌 DIRECTORY TREE COMPONENT
 class DirectoryTree(Tree):
     """Tree widget that displays a directory structure."""
     path = reactive(WATCH_DIR)
@@ -18,6 +19,7 @@ class DirectoryTree(Tree):
     def on_mount(self):
         """Build the tree when the widget mounts."""
         self.build_tree(self.path)
+        self.expand_all()
 
     def build_tree(self, path):
         """Recursively add directories and files to the tree."""
@@ -35,41 +37,44 @@ class DirectoryTree(Tree):
                     child_node = parent_node.add(item, data=item_path)
                     self.populate_tree(child_node, item_path)
                 else:
-                    parent_node.add(item, data=item_path)
+                    parent_node.add_leaf(item, data=item_path)
         except PermissionError:
             pass  # Ignore inaccessible directories
 
     def refresh_tree(self):
         """Rebuild the tree when changes occur."""
         self.build_tree(self.path)
+        self.expand_all()
         self.refresh()
 
     def on_node_selected(self, event):
-        """Handle file selection and display its contents."""
+        """Handle file selection and update inline code preview."""
         file_path = event.node.data
         if os.path.isfile(file_path):  # If a file is selected
-            self.app.show_file_content(file_path)  # Call the app method
+            self.app.show_file_content(file_path)  # Show in the right pane
 
 
+### 📌 CODE PREVIEW PANEL
 class CodeViewer(ScrollView):
     """Scrollable widget to display syntax-highlighted code."""
-    
+
     def update_content(self, file_path):
         """Update the content of the code viewer."""
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 code = f.read()
             
-            # Extract file extension for proper syntax highlighting
-            file_extension = file_path.split(".")[-1]
-            
-            # Display the syntax-highlighted code inside the ScrollView
-            self.update(Syntax(code, file_extension, theme="monokai", line_numbers=True))
+            file_extension = file_path.split(".")[-1]  # Get file type
+            syntax = Syntax(code, file_extension, theme="monokai", line_numbers=True)
+
+            # Update the ScrollView with formatted code
+            self.update(syntax)
 
         except Exception as e:
             self.update(f"[red]Error loading file: {e}[/red]")  # Display error message
 
 
+### 📌 DIRECTORY WATCHER (Auto-refreshes file list)
 class DirectoryWatcher(FileSystemEventHandler):
     """Watches a directory and notifies the app when changes occur."""
     def __init__(self, app):
@@ -81,9 +86,10 @@ class DirectoryWatcher(FileSystemEventHandler):
         self.app.call_from_thread(self.app.refresh_tree)
 
 
+### 📌 MAIN APPLICATION
 class DirectoryTreeApp(App):
-    """Main application with directory tree and code viewer."""
-    
+    """Main application with directory tree and inline code viewer."""
+
     CSS = """
     Horizontal {
         height: 100%;

@@ -19,15 +19,15 @@ class DirectoryTree(Tree):
     def on_mount(self):
         """Build the tree when the widget mounts."""
         self.build_tree(self.path)
-        self.expand_all_nodes(self.root)  # Corrected: Manually expand nodes
+        self.expand_all_nodes(self.root)  # Expand all nodes
 
     def build_tree(self, path):
         """Recursively add directories and files to the tree."""
         self.clear()
         root_node = self.root.add(os.path.basename(path), data=path)
         self.populate_tree(root_node, path)
-        root_node.expand()
-        self.expand_all_nodes(root_node)  # Expand all subdirectories
+        root_node.expand()  # Expand root directory
+        self.expand_all_nodes(root_node)  # Expand all child nodes
 
     def populate_tree(self, parent_node, path):
         """Populate the tree with the contents of the directory."""
@@ -44,9 +44,10 @@ class DirectoryTree(Tree):
 
     def expand_all_nodes(self, node):
         """Recursively expand all nodes in the tree."""
-        node.expand()
+        node.expand()  # Expand current node
         for child in node.children:
-            self.expand_all_nodes(child)  # Recursively expand subnodes
+            child.expand()  # Expand child node
+            self.expand_all_nodes(child)  # Recur on child
 
     def refresh_tree(self):
         """Rebuild the tree when changes occur."""

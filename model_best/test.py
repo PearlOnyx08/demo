@@ -80,6 +80,7 @@ class CodeViewer(ScrollView):
             self.update(f"[red]Error loading file: {e}[/red]")  # Display error message
 
 
+
 ### 📌 DIRECTORY WATCHER (Auto-refreshes file list)
 class DirectoryWatcher(FileSystemEventHandler):
     """Watches a directory and notifies the app when changes occur."""

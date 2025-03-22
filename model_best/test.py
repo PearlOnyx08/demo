@@ -86,11 +86,8 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
         observer.schedule(event_handler, self.path, recursive=True)
         observer.start()
 
-        def stop_observer():
-            observer.stop()
-            observer.join()
-
-        self.app.call_on_exit(stop_observer)
+        # Ensure observer stops on app exit
+        self.app.exit_callbacks.append(lambda: observer.stop())
 
 
 ### 📌 CODE VIEWER (Displays Syntax-Highlighted Code)

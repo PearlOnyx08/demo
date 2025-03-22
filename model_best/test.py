@@ -37,14 +37,14 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Fixed `__init__()` path issue)
+### 📌 DIRECTORY TREE (Final Fix for `path` Argument)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes when triggered externally."""
 
     def __init__(self, path: str, **kwargs):
         """Ensure path is passed during initialization."""
         print(f"[DEBUG] Initializing DirectoryTree with path: {path}")
-        super().__init__(path=path, **kwargs)  # ✅ Pass `path` properly
+        super().__init__(path, **kwargs)  # ✅ FIXED: Pass `path` immediately
 
     async def on_mount(self):
         """Initialize the directory tree."""
@@ -116,13 +116,13 @@ class CodeBrowserApp(App):
     def __init__(self):
         super().__init__()
         self.observer = None
-        self.tree = LiveUpdatingDirectoryTree(WATCH_DIR, id="tree-view")  # ✅ FIXED: Path passed in `__init__()`
+        self.tree = LiveUpdatingDirectoryTree(WATCH_DIR, id="tree-view")  # ✅ FIXED: Pass path directly
 
     def compose(self) -> ComposeResult:
         yield Header()
         with Vertical():
             with Horizontal():
-                yield self.tree  # ✅ Corrected: Path is set in `__init__()`, not later
+                yield self.tree  # ✅ Path already set in `__init__()`
                 with VerticalScroll(id="code-view"):
                     yield CodeViewer()
             yield DebugConsole(id="debug-log")

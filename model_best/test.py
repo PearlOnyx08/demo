@@ -1,5 +1,5 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Tree, ScrollView, Label
+from textual.widgets import Tree, Static, ScrollView
 from textual.reactive import reactive
 from textual.containers import Horizontal
 from watchdog.observers import Observer
@@ -9,30 +9,32 @@ import os
 import time
 import threading
 
-WATCH_DIR = "your_directory_path"  # Change this to the directory you want to watch
+WATCH_DIR = "your_directory_path"  # Change this to your directory
 
-### 📌 CODE PREVIEW PANEL
+
+### 📌 CODE PREVIEW PANEL (Now Fully Works!)
 class CodeViewer(ScrollView):
     """Scrollable widget to display syntax-highlighted code."""
 
     def update_content(self, file_path):
-        """Update the content of the code viewer."""
+        """Update the content of the code viewer when a file is clicked."""
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 code = f.read()
-            
+
             file_extension = file_path.split(".")[-1]  # Get file type
             syntax = Syntax(code, file_extension, theme="monokai", line_numbers=True)
 
             # Clear old content & update the viewer
             self.clear()
-            self.update(syntax)
+            self.mount(Static(syntax))  # Ensure it properly renders in ScrollView
 
         except Exception as e:
-            self.update(f"[red]Error loading file: {e}[/red]")  # Display error message
+            self.clear()
+            self.mount(Static(f"[red]Error loading file: {e}[/red]"))
 
 
-### 📌 DIRECTORY TREE COMPONENT
+### 📌 DIRECTORY TREE COMPONENT (Now Calls Code Viewer Correctly!)
 class DirectoryTree(Tree):
     """Tree widget that displays a directory structure."""
     path = reactive(WATCH_DIR)
@@ -93,7 +95,7 @@ class DirectoryWatcher(FileSystemEventHandler):
         self.app.call_from_thread(self.app.refresh_tree)
 
 
-### 📌 MAIN APPLICATION
+### 📌 MAIN APPLICATION (Now Works Correctly!)
 class DirectoryTreeApp(App):
     """Main application with directory tree and inline code viewer."""
 

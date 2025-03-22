@@ -1,18 +1,20 @@
-from textual.app import App, ComposeResult
-from textual.widgets import Tree, Log, Footer, Header
-from textual.containers import Vertical
-from textual.reactive import reactive
-from textual.events import Click
-import os
+from __future__ import annotations
 
-WATCH_DIR = "./"  # Change this if needed
+import sys
+from rich.syntax import Syntax
+from rich.traceback import Traceback
+
+from textual.app import App, ComposeResult
+from textual.containers import Container, VerticalScroll
+from textual.reactive import reactive, var
+from textual.widgets import DirectoryTree, Footer, Header, Static, Log
 
 
 class DebugConsole(Log):
-    """Debug console that logs events inside the UI."""
+    """A widget that displays debug logs inside the UI."""
 
     def on_mount(self):
-        """Redirects print() output to this console."""
+        """Redirects standard output to this widget."""
         self.write("[DEBUG] Debug console started...")
         import sys
         sys.stdout = self  # Redirect stdout to this widget
@@ -22,63 +24,74 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-class DirectoryTree(Tree):
-    """Custom directory tree widget for debugging."""
-
-    path = reactive(WATCH_DIR)
-
-    def on_mount(self):
-        """Force the tree to load and expand."""
-        print("[DEBUG] DirectoryTree mounted")
-        self.load_directory(self.path)
-        self.expand_all_nodes(self.root)
-
-    def load_directory(self, path):
-        """Manually build the tree to ensure it loads files."""
-        print(f"[DEBUG] Loading directory: {path}")
-        self.clear()
-        root_node = self.root.add(os.path.basename(path), data=path)
-        self.populate_tree(root_node, path)
-        root_node.expand()
-    
-    def populate_tree(self, parent_node, path):
-        """Manually populate the tree with directories and files."""
-        try:
-            for item in sorted(os.listdir(path)):
-                item_path = os.path.join(path, item)
-                if os.path.isdir(item_path):
-                    parent_node.add(item, data=item_path)  # Folder
-                else:
-                    parent_node.add_leaf(item, data=item_path)  # File
-        except PermissionError:
-            pass
-
-    def on_node_selected(self, event):
-        """Log when a node is selected."""
-        print(f"[DEBUG] Node selected: {event.node.data}")  # ✅ Should always appear
-
-    def on_click(self, event: Click):
-        """Manually detect clicks on tree elements."""
-        print("[DEBUG] Tree clicked")  # ✅ Logs any click on the tree
-        return super().on_click(event)  # Pass to normal behavior
-
-
-class SimpleDebugApp(App):
-    """Minimal app for debugging the tree widget."""
+class FixedCodeBrowser(App):
+    """Textual code browser app (with debugging)."""
 
     CSS_PATH = "code_browser.tcss"
-    BINDINGS = [("q", "quit", "Quit")]
+    BINDINGS = [
+        ("f", "toggle_files", "Toggle Files"),
+        ("q", "quit", "Quit"),
+    ]
+
+    show_tree = var(True)
+    path: reactive[str | None] = reactive(None)
+
+    def watch_show_tree(self, show_tree: bool) -> None:
+        """Called when show_tree is modified."""
+        self.set_class(show_tree, "-show-tree")
 
     def compose(self) -> ComposeResult:
-        """Compose the UI layout with only a tree and debug log."""
+        """Compose our UI."""
+        path = "./" if len(sys.argv) < 2 else sys.argv[1]
         yield Header()
-        with Vertical():
-            yield DirectoryTree("Directory", id="tree-view")
-            yield DebugConsole(id="debug-log")  # Debug log window
+        with Container():
+            yield DirectoryTree(path, id="tree-view")
+            with VerticalScroll(id="code-view"):
+                yield Static(id="code", expand=True)
+        yield DebugConsole(id="debug-log")  # ✅ Debug log at the bottom
         yield Footer()
+
+    def on_mount(self) -> None:
+        """Ensure tree is focused."""
+        self.query_one(DirectoryTree).focus()
+        print("[DEBUG] App mounted")
+
+    def on_directory_tree_file_selected(
+        self, event: DirectoryTree.FileSelected
+    ) -> None:
+        """Called when the user clicks a file in the directory tree."""
+        event.stop()
+        self.path = str(event.path)
+        print(f"[DEBUG] File selected: {self.path}")  # ✅ Confirms click event
+
+    def watch_path(self, path: str | None) -> None:
+        """Called when path changes (i.e., a file is clicked)."""
+        print(f"[DEBUG] Updating path: {path}")  # ✅ Logs the path update
+        code_view = self.query_one("#code", Static)
+        if path is None:
+            code_view.update("")
+            return
+        try:
+            syntax = Syntax.from_path(
+                path,
+                line_numbers=True,
+                word_wrap=False,
+                indent_guides=True,
+                theme="github-dark" if self.current_theme.dark else "github-light",
+            )
+            print("[DEBUG] Successfully loaded syntax")
+        except Exception:
+            code_view.update(Traceback(theme="github-dark", width=None))
+            self.sub_title = "ERROR"
+        else:
+            code_view.update(syntax)
+            self.query_one("#code-view").scroll_home(animate=False)
+            self.sub_title = path
+
+    def action_toggle_files(self) -> None:
+        """Called in response to key binding."""
+        self.show_tree = not self.show_tree
 
 
 if __name__ == "__main__":
-    SimpleDebugApp().run()
-
-
+    FixedCodeBrowser().run()

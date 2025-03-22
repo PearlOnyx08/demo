@@ -30,29 +30,21 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Fixed for Textual Updates)
+### 📌 DIRECTORY TREE (Properly Handles Path Updates)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes when triggered externally."""
 
     def on_mount(self):
-        """Initialize the directory tree."""
+        """Initialize the directory tree with the correct path."""
         print("[DEBUG] DirectoryTree mounted")
-        self.set_path(WATCH_DIR)  # ✅ Correctly set path without errors
-        self.run_worker(self.watch_path())  # ✅ Properly awaited
+        self.set_path(WATCH_DIR)  # ✅ Correctly set path
+        self.run_worker(self.refresh_tree())  # ✅ Ensures refresh happens correctly
 
-    async def watch_path(self):
-        """Ensures directory tree updates properly."""
-        has_cursor = self.cursor_node is not None
-        self.refresh_tree()
-        if has_cursor:
-            self.cursor_line = 0
-        self.scroll_to(0, 0, animate=False)
-
-    def refresh_tree(self):
+    async def refresh_tree(self):
         """Rebuild the tree to reflect file changes."""
         print("[DEBUG] Full directory refresh triggered")
         self.clear()  # ✅ Clears the entire tree before reloading
-        self.set_path(WATCH_DIR)  # ✅ Correct way to reset the path
+        self.set_path(WATCH_DIR)  # ✅ Reset the path
         self.expand_all_nodes(self.root)
 
     def expand_all_nodes(self, node):
@@ -105,7 +97,7 @@ class DirectoryWatcher(FileSystemEventHandler):
             self.app.call_from_thread(self.app.refresh_tree)
 
 
-### 📌 MAIN APPLICATION
+### 📌 MAIN APPLICATION (Handles File Watching)
 class CodeBrowserApp(App):
     """Main application with a live-updating directory tree and code viewer."""
 
@@ -115,13 +107,13 @@ class CodeBrowserApp(App):
     def __init__(self):
         super().__init__()
         self.observer = None
+        self.tree = LiveUpdatingDirectoryTree(id="tree-view")  # ✅ Path set later in `on_mount()`
 
     def compose(self) -> ComposeResult:
         yield Header()
         with Vertical():
             with Horizontal():
-                self.tree = LiveUpdatingDirectoryTree(WATCH_DIR, id="tree-view")  # ✅ Fixed
-                yield self.tree
+                yield self.tree  # ✅ Corrected: Path is set later in `on_mount()`
                 with VerticalScroll(id="code-view"):
                     yield CodeViewer()
             yield DebugConsole(id="debug-log")
@@ -134,10 +126,12 @@ class CodeBrowserApp(App):
     def refresh_tree(self):
         """Externally refresh the directory tree when files change."""
         print("[DEBUG] External tree refresh triggered")
-        self.tree.refresh_tree()
+        self.tree.run_worker(self.tree.refresh_tree())
 
     def on_mount(self):
+        """Start directory watching here instead of `compose()`."""
         print("[DEBUG] App mounted")
+        self.tree.set_path(WATCH_DIR)  # ✅ Correct way to set path
         self.start_watching_directory()
 
     def start_watching_directory(self):

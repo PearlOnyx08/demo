@@ -13,7 +13,7 @@ from rich.traceback import Traceback
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, VerticalScroll, Vertical
-from textual.reactive import reactive, var
+from textual.reactive import reactive
 from textual.widgets import DirectoryTree, Static, Footer, Header, Log
 from textual.scroll_view import ScrollView  # Ensure correct import for newer versions
 
@@ -35,7 +35,7 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Auto-Refreshing Version)
+### 📌 DIRECTORY TREE (Full Refresh on File Changes)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes immediately when files are added/removed."""
 
@@ -48,11 +48,11 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
         self.watch_directory()
 
     def refresh_tree(self):
-        """Rebuilds the tree immediately when files are added or removed."""
-        print("[DEBUG] Refreshing directory tree")
-        self.clear()
+        """Force a complete rebuild of the tree to reflect deleted files."""
+        print("[DEBUG] Full directory refresh triggered")
+        self.clear()  # ✅ Clears the entire tree before reloading
         self.load_directory(self.path)
-        self.expand_all_nodes(self.root)  # ✅ Auto-expand all nodes
+        self.expand_all_nodes(self.root)  # ✅ Expand nodes after refresh
 
     def expand_all_nodes(self, node):
         """Expand all nodes to show new files immediately."""
@@ -114,7 +114,7 @@ class CodeViewer(ScrollView):
             self.code_display.update(Traceback(theme="github-dark", width=None))
 
 
-### 📌 DIRECTORY WATCHER (Detects File Changes & Triggers Refresh)
+### 📌 DIRECTORY WATCHER (Detects File Changes & Triggers Full Refresh)
 class DirectoryWatcher(FileSystemEventHandler):
     """Watches a directory and refreshes the tree when files change."""
 
@@ -123,10 +123,9 @@ class DirectoryWatcher(FileSystemEventHandler):
         self.tree_widget = tree_widget
 
     def on_any_event(self, event):
-        """Refresh the directory tree when any file system change is detected."""
-        if not event.is_directory:
-            print(f"[DEBUG] File system change detected: {event.src_path}")
-            self.tree_widget.app.call_from_thread(self.tree_widget.refresh_tree)
+        """Trigger a full directory refresh when any file system change is detected."""
+        print(f"[DEBUG] File system change detected: {event.src_path}")
+        self.tree_widget.app.call_from_thread(self.tree_widget.refresh_tree)
 
 
 ### 📌 MAIN APPLICATION (Combines Everything)

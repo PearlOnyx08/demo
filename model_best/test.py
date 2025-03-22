@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import os
 from pathlib import Path
+from itertools import islice  # Ensure islice is available
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -15,6 +16,13 @@ from textual.widgets import DirectoryTree, Static, Footer, Header, Log
 from textual.scroll_view import ScrollView  # Correct import for new versions
 
 WATCH_DIR = Path("./") if len(sys.argv) < 2 else Path(sys.argv[1])  # Use Path object
+
+# ✅ Debug print before using the directory
+print(f"[DEBUG] WATCH_DIR set to: {WATCH_DIR}")
+
+if not WATCH_DIR.exists() or not WATCH_DIR.is_dir():
+    print("[ERROR] Invalid WATCH_DIR path! Check if the directory exists.")
+    sys.exit(1)  # Exit if path is invalid
 
 
 ### 📌 DEBUG CONSOLE (For Troubleshooting)
@@ -30,20 +38,26 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Correct `watch_path` and `set_path` usage)
+### 📌 DIRECTORY TREE (Proper Error Handling)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes when triggered externally."""
 
     async def on_mount(self):
         """Initialize the directory tree."""
-        print("[DEBUG] DirectoryTree mounted")
-        self.set_path(WATCH_DIR)  # ✅ Correctly set path
-        await self.watch_path()  # ✅ Properly await `watch_path()`
+        try:
+            print("[DEBUG] DirectoryTree mounted")
+            self.set_path(WATCH_DIR)  # ✅ Correctly set path
+            await self.watch_path()  # ✅ Properly await `watch_path()`
+        except Exception as e:
+            print(f"[ERROR] Failed to mount DirectoryTree: {e}")
 
     async def refresh_tree(self):
         """Rebuild the tree to reflect file changes."""
-        print("[DEBUG] Full directory refresh triggered")
-        await self.reload()  # ✅ Use `reload()` instead of manually clearing
+        try:
+            print("[DEBUG] Full directory refresh triggered")
+            await self.reload()  # ✅ Use `reload()` instead of manually clearing
+        except Exception as e:
+            print(f"[ERROR] Failed to reload DirectoryTree: {e}")
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
         event.stop()
@@ -117,22 +131,31 @@ class CodeBrowserApp(App):
 
     async def refresh_tree(self):
         """Externally refresh the directory tree when files change."""
-        print("[DEBUG] External tree refresh triggered")
-        await self.tree.refresh_tree()
+        try:
+            print("[DEBUG] External tree refresh triggered")
+            await self.tree.refresh_tree()
+        except Exception as e:
+            print(f"[ERROR] Failed to refresh tree: {e}")
 
     async def on_mount(self):
         """Start directory watching here instead of `compose()`."""
-        print("[DEBUG] App mounted")
-        self.tree.set_path(WATCH_DIR)  # ✅ Correct way to set path
-        await self.tree.watch_path()  # ✅ Properly await `watch_path()`
-        self.start_watching_directory()
+        try:
+            print("[DEBUG] App mounted")
+            self.tree.set_path(WATCH_DIR)  # ✅ Correct way to set path
+            await self.tree.watch_path()  # ✅ Properly await `watch_path()`
+            self.start_watching_directory()
+        except Exception as e:
+            print(f"[ERROR] Failed during on_mount: {e}")
 
     def start_watching_directory(self):
-        print("[DEBUG] Starting directory watcher")
-        event_handler = DirectoryWatcher(self)
-        self.observer = Observer()
-        self.observer.schedule(event_handler, str(WATCH_DIR), recursive=True)
-        self.observer.start()
+        try:
+            print("[DEBUG] Starting directory watcher")
+            event_handler = DirectoryWatcher(self)
+            self.observer = Observer()
+            self.observer.schedule(event_handler, str(WATCH_DIR), recursive=True)
+            self.observer.start()
+        except Exception as e:
+            print(f"[ERROR] Failed to start directory watcher: {e}")
 
     def on_exit(self):
         """Stop the file observer when the app exits."""
@@ -143,4 +166,7 @@ class CodeBrowserApp(App):
 
 
 if __name__ == "__main__":
-    CodeBrowserApp().run()
+    try:
+        CodeBrowserApp().run()
+    except Exception as e:
+        print(f"[ERROR] Fatal error: {e}")

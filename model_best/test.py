@@ -35,7 +35,7 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Full Refresh on File Changes)
+### 📌 DIRECTORY TREE (Auto-Refreshing Version)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes immediately when files are added/removed."""
 
@@ -48,11 +48,21 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
         self.watch_directory()
 
     def refresh_tree(self):
-        """Force a complete rebuild of the tree to reflect deleted files."""
+        """Rebuild the entire tree from scratch to reflect file changes."""
         print("[DEBUG] Full directory refresh triggered")
         self.clear()  # ✅ Clears the entire tree before reloading
-        self.load_directory(self.path)
+        self.build_tree(self.root, self.path)
         self.expand_all_nodes(self.root)  # ✅ Expand nodes after refresh
+
+    def build_tree(self, parent, path):
+        """Recursively build the directory tree."""
+        try:
+            for item in sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+                node = parent.add(item.name, data=item)
+                if item.is_dir():
+                    self.build_tree(node, item)  # Recurse into directories
+        except PermissionError:
+            pass  # Skip inaccessible directories
 
     def expand_all_nodes(self, node):
         """Expand all nodes to show new files immediately."""
@@ -114,7 +124,7 @@ class CodeViewer(ScrollView):
             self.code_display.update(Traceback(theme="github-dark", width=None))
 
 
-### 📌 DIRECTORY WATCHER (Detects File Changes & Triggers Full Refresh)
+### 📌 DIRECTORY WATCHER (Detects File Changes & Triggers Refresh)
 class DirectoryWatcher(FileSystemEventHandler):
     """Watches a directory and refreshes the tree when files change."""
 

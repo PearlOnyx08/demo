@@ -4,6 +4,8 @@ import os
 import sys
 import time
 import threading
+import io
+import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -11,15 +13,30 @@ from rich.syntax import Syntax
 from rich.traceback import Traceback
 
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, VerticalScroll
+from textual.containers import Horizontal, VerticalScroll, Vertical
 from textual.reactive import reactive
-from textual.widgets import Tree, Static, Footer, Header
+from textual.widgets import Tree, Static, Footer, Header, TextLog
 from textual.scroll_view import ScrollView  # ✅ Correct import for newer versions
+
 
 WATCH_DIR = "./" if len(sys.argv) < 2 else sys.argv[1]  # Allow command-line path
 
 
-### 📌 CUSTOM DIRECTORY TREE (Now Includes Debugging Prints)
+### 📌 DEBUG LOG WINDOW (Captures and Displays Print Statements)
+class DebugConsole(TextLog):
+    """A widget that displays debug logs inside the UI."""
+
+    def on_mount(self):
+        """Redirects standard output to this widget."""
+        self.write("[DEBUG] Debug console started...")
+        sys.stdout = self  # Redirect stdout to this widget
+
+    def write(self, message):
+        """Capture and display print output."""
+        self.write_line(message.rstrip())
+
+
+### 📌 CUSTOM DIRECTORY TREE
 class DirectoryTree(Tree):
     """Custom directory tree widget."""
 
@@ -27,13 +44,13 @@ class DirectoryTree(Tree):
 
     def on_mount(self):
         """Build the tree when the widget mounts."""
-        print("[DEBUG] DirectoryTree mounted")  # ✅ Check if this runs
+        print("[DEBUG] DirectoryTree mounted")
         self.build_tree(self.path)
         self.expand_all_nodes(self.root)
 
     def build_tree(self, path):
         """Recursively add directories and files to the tree."""
-        print(f"[DEBUG] Building tree for: {path}")  # ✅ Confirm it runs
+        print(f"[DEBUG] Building tree for: {path}")
         self.clear()
         root_node = self.root.add(os.path.basename(path), data=path)
         self.populate_tree(root_node, path)
@@ -62,31 +79,31 @@ class DirectoryTree(Tree):
 
     def refresh_tree(self):
         """Rebuild the tree when changes occur."""
-        print("[DEBUG] Refreshing directory tree")  # ✅ Check if it refreshes
+        print("[DEBUG] Refreshing directory tree")
         self.build_tree(self.path)
 
     def on_node_selected(self, event):
         """Handle file selection and update the code preview."""
         file_path = event.node.data
-        print(f"[DEBUG] File selected: {file_path}")  # ✅ Check if clicking a file works
+        print(f"[DEBUG] File selected: {file_path}")
         if os.path.isfile(file_path):
             self.app.show_file_content(file_path)  # Calls `CodeViewer.update_content()`
 
 
-### 📌 CODE VIEWER (Now Includes Debugging Prints)
+### 📌 CODE VIEWER (Fix for `textual.scroll_view.ScrollView`)
 class CodeViewer(ScrollView):
     """Scrollable widget to display syntax-highlighted code."""
 
     def on_mount(self):
         """Ensure a Static widget exists for updating."""
-        print("[DEBUG] CodeViewer mounted")  # ✅ Check if it initializes
+        print("[DEBUG] CodeViewer mounted")
         self.code_display = Static(id="code", expand=True)
-        self.mount(self.code_display)  # ✅ Ensure it's inside `ScrollView`
+        self.mount(self.code_display)  # Ensure it's inside `ScrollView`
 
     def update_content(self, file_path):
         """Update the content of the code viewer when a file is clicked."""
-        print(f"[DEBUG] Updating content for: {file_path}")  # ✅ Check if function runs
-        self.code_display.update(f"[yellow]Loading {file_path}...[/yellow]")  # Show loading
+        print(f"[DEBUG] Updating content for: {file_path}")
+        self.code_display.update(f"[yellow]Loading {file_path}...[/yellow]")
 
         try:
             syntax = Syntax.from_path(
@@ -96,12 +113,12 @@ class CodeViewer(ScrollView):
                 indent_guides=True,
                 theme="github-dark",
             )
-            print("[DEBUG] Successfully loaded syntax")  # ✅ Check if Syntax works
-            self.code_display.update(syntax)  # ✅ Correct way to update content inside ScrollView
+            print("[DEBUG] Successfully loaded syntax")
+            self.code_display.update(syntax)
 
         except Exception as e:
-            print(f"[ERROR] Failed to load file: {e}")  # ✅ Show error if Syntax fails
-            self.code_display.update(Traceback(theme="github-dark", width=None))  # Show error
+            print(f"[ERROR] Failed to load file: {e}")
+            self.code_display.update(Traceback(theme="github-dark", width=None))
 
 
 ### 📌 DIRECTORY WATCHER (Auto-refreshes file list)
@@ -113,13 +130,13 @@ class DirectoryWatcher(FileSystemEventHandler):
 
     def on_any_event(self, event):
         """Notify the app to refresh the tree when a file event occurs."""
-        print("[DEBUG] File change detected")  # ✅ Confirm if this runs
+        print("[DEBUG] File change detected")
         self.app.call_from_thread(self.app.refresh_tree)
 
 
-### 📌 MAIN APPLICATION (Fix for `ScrollView`)
+### 📌 MAIN APPLICATION (Now Includes Debug Console)
 class CodeBrowserApp(App):
-    """Main application with custom directory tree and code viewer."""
+    """Main application with custom directory tree, code viewer, and debug console."""
 
     CSS_PATH = "code_browser.tcss"  # Load the `.tcss` file for styling
     BINDINGS = [("q", "quit", "Quit")]
@@ -127,21 +144,23 @@ class CodeBrowserApp(App):
     def compose(self) -> ComposeResult:
         """Create the UI layout."""
         yield Header()
-        with Horizontal():
-            yield DirectoryTree("Directory", id="tree-view")  # ✅ Your Custom Tree
-            with VerticalScroll(id="code-view"):
-                yield CodeViewer()  # ✅ Uses ScrollView correctly
+        with Vertical():
+            with Horizontal():
+                yield DirectoryTree("Directory", id="tree-view")  # ✅ Your Custom Tree
+                with VerticalScroll(id="code-view"):
+                    yield CodeViewer()  # ✅ Uses ScrollView correctly
+            yield DebugConsole(id="debug-log")  # ✅ Debug Console at the bottom
         yield Footer()
 
     def refresh_tree(self):
         """Refresh the directory tree when changes occur."""
-        print("[DEBUG] App refresh_tree() called")  # ✅ Ensure this runs
+        print("[DEBUG] App refresh_tree() called")
         tree = self.query_one(DirectoryTree)
         tree.refresh_tree()
 
     def show_file_content(self, file_path):
         """Show the selected file's contents in the code viewer."""
-        print(f"[DEBUG] App.show_file_content({file_path}) called")  # ✅ Ensure it's triggered
+        print(f"[DEBUG] App.show_file_content({file_path}) called")
         viewer = self.query_one(CodeViewer)
         viewer.update_content(file_path)
 
@@ -161,7 +180,7 @@ class CodeBrowserApp(App):
 
     def on_mount(self):
         """Start watching the directory when the app mounts."""
-        print("[DEBUG] App mounted")  # ✅ Confirm app starts
+        print("[DEBUG] App mounted")
         threading.Thread(target=self.watch_directory, daemon=True).start()
 
 

@@ -42,10 +42,9 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
     path = reactive(WATCH_DIR)
 
     def on_mount(self):
-        """Initialize the directory tree and start watching for changes."""
+        """Initialize the directory tree."""
         print("[DEBUG] DirectoryTree mounted")
         self.refresh_tree()
-        self.watch_directory()
 
     def refresh_tree(self):
         """Rebuild the entire tree from scratch to reflect file changes."""
@@ -77,14 +76,6 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
         file_path = event.path
         print(f"[DEBUG] File selected: {file_path}")
         self.app.show_file_content(file_path)
-
-    def watch_directory(self):
-        """Start a background thread to watch the directory for changes."""
-        print("[DEBUG] Starting directory watcher")
-        self.observer = Observer()
-        event_handler = DirectoryWatcher(self)
-        self.observer.schedule(event_handler, self.path, recursive=True)
-        self.observer.start()
 
 
 ### 📌 CODE VIEWER (Displays Syntax-Highlighted Code)
@@ -132,7 +123,7 @@ class DirectoryWatcher(FileSystemEventHandler):
         self.tree_widget.app.call_from_thread(self.tree_widget.refresh_tree)
 
 
-### 📌 MAIN APPLICATION (Combines Everything)
+### 📌 MAIN APPLICATION (Manages File Watching & Cleanup)
 class CodeBrowserApp(App):
     """Main application with a live-updating directory tree and code viewer."""
 
@@ -140,9 +131,9 @@ class CodeBrowserApp(App):
     BINDINGS = [("q", "quit", "Quit")]
 
     def __init__(self):
-        """Initialize the app and create an observer for file watching."""
+        """Initialize the app and track observer instance."""
         super().__init__()
-        self.observer = None  # Track observer instance
+        self.observer = None  # Track observer to stop it on exit
 
     def compose(self) -> ComposeResult:
         """Create the UI layout."""
@@ -163,10 +154,17 @@ class CodeBrowserApp(App):
         viewer.update_content(file_path)
 
     def on_mount(self):
-        """Start directory watching."""
+        """Start directory watching here instead of in `LiveUpdatingDirectoryTree`."""
         print("[DEBUG] App mounted")
-        self.tree.watch_directory()
-        self.observer = self.tree.observer  # Store observer reference
+        self.start_watching_directory()
+
+    def start_watching_directory(self):
+        """Manually start directory watching and store the observer."""
+        print("[DEBUG] Starting directory watcher")
+        event_handler = DirectoryWatcher(self.tree)
+        self.observer = Observer()
+        self.observer.schedule(event_handler, WATCH_DIR, recursive=True)
+        self.observer.start()
 
     def on_exit(self):
         """Stop the file observer when the app exits."""

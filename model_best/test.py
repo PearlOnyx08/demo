@@ -35,9 +35,9 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Supports Live Updates)
+### 📌 DIRECTORY TREE (Auto-Refreshing Version)
 class LiveUpdatingDirectoryTree(DirectoryTree):
-    """Custom directory tree widget with automatic file watching."""
+    """Directory tree that refreshes immediately when files are added/removed."""
 
     path = reactive(WATCH_DIR)
 
@@ -48,10 +48,18 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
         self.watch_directory()
 
     def refresh_tree(self):
-        """Refresh the directory tree when changes occur."""
+        """Rebuilds the tree immediately when files are added or removed."""
         print("[DEBUG] Refreshing directory tree")
         self.clear()
         self.load_directory(self.path)
+        self.expand_all_nodes(self.root)  # ✅ Auto-expand all nodes
+
+    def expand_all_nodes(self, node):
+        """Expand all nodes to show new files immediately."""
+        node.expand()
+        for child in node.children:
+            child.expand()
+            self.expand_all_nodes(child)
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
         """Handle file selection and update the code preview."""
@@ -108,7 +116,7 @@ class CodeViewer(ScrollView):
 
 ### 📌 DIRECTORY WATCHER (Detects File Changes & Triggers Refresh)
 class DirectoryWatcher(FileSystemEventHandler):
-    """Watches a directory and notifies the app when changes occur."""
+    """Watches a directory and refreshes the tree when files change."""
 
     def __init__(self, tree_widget):
         super().__init__()

@@ -81,13 +81,10 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
     def watch_directory(self):
         """Start a background thread to watch the directory for changes."""
         print("[DEBUG] Starting directory watcher")
+        self.observer = Observer()
         event_handler = DirectoryWatcher(self)
-        observer = Observer()
-        observer.schedule(event_handler, self.path, recursive=True)
-        observer.start()
-
-        # Ensure observer stops on app exit
-        self.app.exit_callbacks.append(lambda: observer.stop())
+        self.observer.schedule(event_handler, self.path, recursive=True)
+        self.observer.start()
 
 
 ### 📌 CODE VIEWER (Displays Syntax-Highlighted Code)
@@ -142,12 +139,18 @@ class CodeBrowserApp(App):
     CSS_PATH = "code_browser.tcss"  # Load the `.tcss` file for styling
     BINDINGS = [("q", "quit", "Quit")]
 
+    def __init__(self):
+        """Initialize the app and create an observer for file watching."""
+        super().__init__()
+        self.observer = None  # Track observer instance
+
     def compose(self) -> ComposeResult:
         """Create the UI layout."""
         yield Header()
         with Vertical():
             with Horizontal():
-                yield LiveUpdatingDirectoryTree(WATCH_DIR, id="tree-view")  # ✅ Now updates live!
+                self.tree = LiveUpdatingDirectoryTree(WATCH_DIR, id="tree-view")  # ✅ Now updates live!
+                yield self.tree
                 with VerticalScroll(id="code-view"):
                     yield CodeViewer()  # ✅ Uses ScrollView correctly
             yield DebugConsole(id="debug-log")  # ✅ Debug Console at the bottom
@@ -158,6 +161,19 @@ class CodeBrowserApp(App):
         print(f"[DEBUG] Loading file: {file_path}")
         viewer = self.query_one(CodeViewer)
         viewer.update_content(file_path)
+
+    def on_mount(self):
+        """Start directory watching."""
+        print("[DEBUG] App mounted")
+        self.tree.watch_directory()
+        self.observer = self.tree.observer  # Store observer reference
+
+    def on_exit(self):
+        """Stop the file observer when the app exits."""
+        if self.observer:
+            print("[DEBUG] Stopping file observer")
+            self.observer.stop()
+            self.observer.join()
 
 
 if __name__ == "__main__":

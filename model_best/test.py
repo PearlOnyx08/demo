@@ -87,7 +87,7 @@ class CodeViewer(ScrollView):
                 theme="github-dark",
             )
             self.clear()
-            self.mount(Static(syntax))
+            self.mount(Static(syntax, id="code"))
 
         except Exception:
             self.clear()
@@ -106,33 +106,18 @@ class DirectoryWatcher(FileSystemEventHandler):
         self.app.call_from_thread(self.app.refresh_tree)
 
 
-### 📌 MAIN APPLICATION (Your Tree + CodeBrowser)
+### 📌 MAIN APPLICATION (Now Uses `.tcss` Properly!)
 class CodeBrowserApp(App):
     """Main application with custom directory tree and code viewer."""
 
-    CSS = """
-    Horizontal {
-        height: 100%;
-        width: 100%;
-    }
-    Tree {
-        width: 30%;
-        border: solid green;
-    }
-    ScrollView {
-        width: 70%;
-        border: solid blue;
-        padding: 1;
-    }
-    """
-
+    CSS_PATH = "code_browser.tcss"  # Load the `.tcss` file for styling
     BINDINGS = [("q", "quit", "Quit")]
 
     def compose(self) -> ComposeResult:
         """Create the UI layout."""
         yield Header()
         with Horizontal():
-            yield DirectoryTree("Directory")  # Your Custom Tree
+            yield DirectoryTree("Directory", id="tree-view")  # Your Custom Tree
             with VerticalScroll(id="code-view"):
                 yield CodeViewer()
         yield Footer()
@@ -168,4 +153,3 @@ class CodeBrowserApp(App):
 
 if __name__ == "__main__":
     CodeBrowserApp().run()
-

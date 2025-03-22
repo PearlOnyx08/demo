@@ -35,9 +35,9 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Auto-Refreshing Version)
+### 📌 DIRECTORY TREE (Manages File Display, But No Watching)
 class LiveUpdatingDirectoryTree(DirectoryTree):
-    """Directory tree that refreshes immediately when files are added/removed."""
+    """Directory tree that refreshes when triggered externally."""
 
     path = reactive(WATCH_DIR)
 
@@ -113,14 +113,15 @@ class CodeViewer(ScrollView):
 class DirectoryWatcher(FileSystemEventHandler):
     """Watches a directory and refreshes the tree when files change."""
 
-    def __init__(self, tree_widget):
+    def __init__(self, app: CodeBrowserApp):
         super().__init__()
-        self.tree_widget = tree_widget
+        self.app = app
 
     def on_any_event(self, event):
         """Trigger a full directory refresh when any file system change is detected."""
-        print(f"[DEBUG] File system change detected: {event.src_path}")
-        self.tree_widget.app.call_from_thread(self.tree_widget.refresh_tree)
+        if not event.is_directory:
+            print(f"[DEBUG] File system change detected: {event.src_path}")
+            self.app.call_from_thread(self.app.refresh_tree)
 
 
 ### 📌 MAIN APPLICATION (Manages File Watching & Cleanup)
@@ -153,6 +154,11 @@ class CodeBrowserApp(App):
         viewer = self.query_one(CodeViewer)
         viewer.update_content(file_path)
 
+    def refresh_tree(self):
+        """Externally refresh the directory tree (called by the watcher)."""
+        print("[DEBUG] External tree refresh triggered")
+        self.tree.refresh_tree()
+
     def on_mount(self):
         """Start directory watching here instead of in `LiveUpdatingDirectoryTree`."""
         print("[DEBUG] App mounted")
@@ -161,7 +167,7 @@ class CodeBrowserApp(App):
     def start_watching_directory(self):
         """Manually start directory watching and store the observer."""
         print("[DEBUG] Starting directory watcher")
-        event_handler = DirectoryWatcher(self.tree)
+        event_handler = DirectoryWatcher(self)
         self.observer = Observer()
         self.observer.schedule(event_handler, WATCH_DIR, recursive=True)
         self.observer.start()

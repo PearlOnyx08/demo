@@ -1,5 +1,5 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Tree, Static, ScrollView
+from textual.widgets import Tree, ScrollView, Static
 from textual.reactive import reactive
 from textual.containers import Horizontal
 from watchdog.observers import Observer
@@ -11,13 +11,15 @@ import threading
 
 WATCH_DIR = "your_directory_path"  # Change this to your directory
 
-
-### 📌 CODE PREVIEW PANEL (Now Fully Works!)
+### 📌 CODE PREVIEW PANEL (Now Shows Errors & "Loading...")
 class CodeViewer(ScrollView):
     """Scrollable widget to display syntax-highlighted code."""
 
     def update_content(self, file_path):
         """Update the content of the code viewer when a file is clicked."""
+        self.clear()
+        self.mount(Static(f"[yellow]Loading {file_path}...[/yellow]"))  # Indicate loading
+
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 code = f.read()
@@ -25,13 +27,12 @@ class CodeViewer(ScrollView):
             file_extension = file_path.split(".")[-1]  # Get file type
             syntax = Syntax(code, file_extension, theme="monokai", line_numbers=True)
 
-            # Clear old content & update the viewer
             self.clear()
-            self.mount(Static(syntax))  # Ensure it properly renders in ScrollView
+            self.mount(Static(syntax))  # Ensure syntax highlighting appears
 
         except Exception as e:
             self.clear()
-            self.mount(Static(f"[red]Error loading file: {e}[/red]"))
+            self.mount(Static(f"[red]Error loading file: {e}[/red]"))  # Show error message
 
 
 ### 📌 DIRECTORY TREE COMPONENT (Now Calls Code Viewer Correctly!)
@@ -42,7 +43,7 @@ class DirectoryTree(Tree):
     def on_mount(self):
         """Build the tree when the widget mounts."""
         self.build_tree(self.path)
-        self.expand_all_nodes(self.root)  
+        self.expand_all_nodes(self.root)
 
     def build_tree(self, path):
         """Recursively add directories and files to the tree."""
@@ -50,7 +51,7 @@ class DirectoryTree(Tree):
         root_node = self.root.add(os.path.basename(path), data=path)
         self.populate_tree(root_node, path)
         root_node.expand()
-        self.expand_all_nodes(root_node)  
+        self.expand_all_nodes(root_node)
 
     def populate_tree(self, parent_node, path):
         """Populate the tree with the contents of the directory."""
@@ -70,7 +71,7 @@ class DirectoryTree(Tree):
         node.expand()
         for child in node.children:
             child.expand()
-            self.expand_all_nodes(child) 
+            self.expand_all_nodes(child)
 
     def refresh_tree(self):
         """Rebuild the tree when changes occur."""
@@ -79,7 +80,7 @@ class DirectoryTree(Tree):
     def on_node_selected(self, event):
         """Handle file selection and update inline code preview."""
         file_path = event.node.data
-        if os.path.isfile(file_path):  
+        if os.path.isfile(file_path):
             self.app.show_file_content(file_path)  # Calls `CodeViewer.update_content()`
 
 

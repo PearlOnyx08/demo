@@ -38,15 +38,19 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Proper Error Handling)
+### 📌 DIRECTORY TREE (Fixed `__init__()` path issue)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes when triggered externally."""
+
+    def __init__(self, path: str, **kwargs):
+        """Ensure path is passed during initialization."""
+        print(f"[DEBUG] Initializing DirectoryTree with path: {path}")
+        super().__init__(path, **kwargs)  # ✅ Pass `path` properly
 
     async def on_mount(self):
         """Initialize the directory tree."""
         try:
             print("[DEBUG] DirectoryTree mounted")
-            self.set_path(WATCH_DIR)  # ✅ Correctly set path
             await self.watch_path()  # ✅ Properly await `watch_path()`
         except Exception as e:
             print(f"[ERROR] Failed to mount DirectoryTree: {e}")
@@ -113,13 +117,13 @@ class CodeBrowserApp(App):
     def __init__(self):
         super().__init__()
         self.observer = None
-        self.tree = LiveUpdatingDirectoryTree(id="tree-view")  # ✅ Path set later in `on_mount()`
+        self.tree = LiveUpdatingDirectoryTree(str(WATCH_DIR), id="tree-view")  # ✅ FIXED: Path passed in `__init__()`
 
     def compose(self) -> ComposeResult:
         yield Header()
         with Vertical():
             with Horizontal():
-                yield self.tree  # ✅ Corrected: Path is set later in `on_mount()`
+                yield self.tree  # ✅ Corrected: Path is set in `__init__()`, not later
                 with VerticalScroll(id="code-view"):
                     yield CodeViewer()
             yield DebugConsole(id="debug-log")
@@ -141,7 +145,6 @@ class CodeBrowserApp(App):
         """Start directory watching here instead of `compose()`."""
         try:
             print("[DEBUG] App mounted")
-            self.tree.set_path(WATCH_DIR)  # ✅ Correct way to set path
             await self.tree.watch_path()  # ✅ Properly await `watch_path()`
             self.start_watching_directory()
         except Exception as e:

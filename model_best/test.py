@@ -3,7 +3,6 @@ from __future__ import annotations
 import sys
 import os
 from pathlib import Path
-from itertools import islice  # Ensure islice is available
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -15,12 +14,12 @@ from textual.containers import Horizontal, VerticalScroll, Vertical
 from textual.widgets import DirectoryTree, Static, Footer, Header, Log
 from textual.scroll_view import ScrollView  # Correct import for new versions
 
-WATCH_DIR = Path("./") if len(sys.argv) < 2 else Path(sys.argv[1])  # Use Path object
+WATCH_DIR = str(Path("./") if len(sys.argv) < 2 else Path(sys.argv[1]))  # Convert Path to string
 
 # ✅ Debug print before using the directory
 print(f"[DEBUG] WATCH_DIR set to: {WATCH_DIR}")
 
-if not WATCH_DIR.exists() or not WATCH_DIR.is_dir():
+if not os.path.exists(WATCH_DIR) or not os.path.isdir(WATCH_DIR):
     print("[ERROR] Invalid WATCH_DIR path! Check if the directory exists.")
     sys.exit(1)  # Exit if path is invalid
 
@@ -45,7 +44,7 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
     def __init__(self, path: str, **kwargs):
         """Ensure path is passed during initialization."""
         print(f"[DEBUG] Initializing DirectoryTree with path: {path}")
-        super().__init__(path, **kwargs)  # ✅ Pass `path` properly
+        super().__init__(path=path, **kwargs)  # ✅ Pass `path` properly
 
     async def on_mount(self):
         """Initialize the directory tree."""
@@ -117,7 +116,7 @@ class CodeBrowserApp(App):
     def __init__(self):
         super().__init__()
         self.observer = None
-        self.tree = LiveUpdatingDirectoryTree(str(WATCH_DIR), id="tree-view")  # ✅ FIXED: Path passed in `__init__()`
+        self.tree = LiveUpdatingDirectoryTree(WATCH_DIR, id="tree-view")  # ✅ FIXED: Path passed in `__init__()`
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -155,7 +154,7 @@ class CodeBrowserApp(App):
             print("[DEBUG] Starting directory watcher")
             event_handler = DirectoryWatcher(self)
             self.observer = Observer()
-            self.observer.schedule(event_handler, str(WATCH_DIR), recursive=True)
+            self.observer.schedule(event_handler, WATCH_DIR, recursive=True)
             self.observer.start()
         except Exception as e:
             print(f"[ERROR] Failed to start directory watcher: {e}")

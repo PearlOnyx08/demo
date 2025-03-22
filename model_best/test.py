@@ -4,8 +4,6 @@ import os
 import sys
 import time
 import threading
-import io
-import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -15,15 +13,14 @@ from rich.traceback import Traceback
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, VerticalScroll, Vertical
 from textual.reactive import reactive
-from textual.widgets import Tree, Static, Footer, Header, TextLog
+from textual.widgets import Tree, Static, Footer, Header, Log, Button  # ✅ Added Button for Debugging
 from textual.scroll_view import ScrollView  # ✅ Correct import for newer versions
-
 
 WATCH_DIR = "./" if len(sys.argv) < 2 else sys.argv[1]  # Allow command-line path
 
 
 ### 📌 DEBUG LOG WINDOW (Captures and Displays Print Statements)
-class DebugConsole(TextLog):
+class DebugConsole(Log):
     """A widget that displays debug logs inside the UI."""
 
     def on_mount(self):
@@ -36,7 +33,7 @@ class DebugConsole(TextLog):
         self.write_line(message.rstrip())
 
 
-### 📌 CUSTOM DIRECTORY TREE
+### 📌 CUSTOM DIRECTORY TREE (FORCES LOGGING)
 class DirectoryTree(Tree):
     """Custom directory tree widget."""
 
@@ -85,12 +82,14 @@ class DirectoryTree(Tree):
     def on_node_selected(self, event):
         """Handle file selection and update the code preview."""
         file_path = event.node.data
-        print(f"[DEBUG] File selected: {file_path}")
+        print(f"[DEBUG] File selected: {file_path}")  # ✅ This should print when clicking
+
         if os.path.isfile(file_path):
+            print("[DEBUG] Calling self.app.show_file_content()")  # ✅ This should confirm the call
             self.app.show_file_content(file_path)  # Calls `CodeViewer.update_content()`
 
 
-### 📌 CODE VIEWER (Fix for `textual.scroll_view.ScrollView`)
+### 📌 CODE VIEWER (FORCES LOGGING)
 class CodeViewer(ScrollView):
     """Scrollable widget to display syntax-highlighted code."""
 
@@ -102,7 +101,7 @@ class CodeViewer(ScrollView):
 
     def update_content(self, file_path):
         """Update the content of the code viewer when a file is clicked."""
-        print(f"[DEBUG] Updating content for: {file_path}")
+        print(f"[DEBUG] update_content() called for: {file_path}")  # ✅ Confirms function execution
         self.code_display.update(f"[yellow]Loading {file_path}...[/yellow]")
 
         try:
@@ -134,7 +133,7 @@ class DirectoryWatcher(FileSystemEventHandler):
         self.app.call_from_thread(self.app.refresh_tree)
 
 
-### 📌 MAIN APPLICATION (Now Includes Debug Console)
+### 📌 MAIN APPLICATION (FORCES LOGGING + DEBUG BUTTON)
 class CodeBrowserApp(App):
     """Main application with custom directory tree, code viewer, and debug console."""
 
@@ -150,6 +149,7 @@ class CodeBrowserApp(App):
                 with VerticalScroll(id="code-view"):
                     yield CodeViewer()  # ✅ Uses ScrollView correctly
             yield DebugConsole(id="debug-log")  # ✅ Debug Console at the bottom
+            yield Button("Force Debug Print", id="debug-button")  # ✅ Manual Debug Button
         yield Footer()
 
     def refresh_tree(self):
@@ -160,7 +160,7 @@ class CodeBrowserApp(App):
 
     def show_file_content(self, file_path):
         """Show the selected file's contents in the code viewer."""
-        print(f"[DEBUG] App.show_file_content({file_path}) called")
+        print(f"[DEBUG] App.show_file_content({file_path}) called")  # ✅ Confirms function call
         viewer = self.query_one(CodeViewer)
         viewer.update_content(file_path)
 
@@ -182,6 +182,11 @@ class CodeBrowserApp(App):
         """Start watching the directory when the app mounts."""
         print("[DEBUG] App mounted")
         threading.Thread(target=self.watch_directory, daemon=True).start()
+
+    def on_button_pressed(self, event):
+        """Manual Debug Button to force a print statement."""
+        if event.button.id == "debug-button":
+            print("[DEBUG] Debug Button Pressed!")  # ✅ Should appear in debug console
 
 
 if __name__ == "__main__":

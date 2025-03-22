@@ -11,15 +11,15 @@ from rich.syntax import Syntax
 from rich.traceback import Traceback
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, VerticalScroll
+from textual.containers import Horizontal, VerticalScroll
 from textual.reactive import reactive
-from textual.widgets import Tree, Static, ScrollView, Footer, Header
-
+from textual.widgets import Tree, Static, Footer, Header
+from textual.scroll_view import ScrollView  # ✅ Correct import for newer versions
 
 WATCH_DIR = "./" if len(sys.argv) < 2 else sys.argv[1]  # Allow command-line path
 
 
-### 📌 CUSTOM DIRECTORY TREE (Your Custom Tree)
+### 📌 CUSTOM DIRECTORY TREE
 class DirectoryTree(Tree):
     """Custom directory tree widget."""
 
@@ -69,14 +69,18 @@ class DirectoryTree(Tree):
             self.app.show_file_content(file_path)  # Calls `CodeViewer.update_content()`
 
 
-### 📌 CODE VIEWER (Now Works Correctly!)
+### 📌 CODE VIEWER (Fix for `textual.scroll_view.ScrollView`)
 class CodeViewer(ScrollView):
     """Scrollable widget to display syntax-highlighted code."""
 
+    def on_mount(self):
+        """Ensure a Static widget exists for updating."""
+        self.code_display = Static(id="code", expand=True)
+        self.mount(self.code_display)  # ✅ Ensure it's inside `ScrollView`
+
     def update_content(self, file_path):
         """Update the content of the code viewer when a file is clicked."""
-        self.clear()
-        self.mount(Static(f"[yellow]Loading {file_path}...[/yellow]"))  # Indicate loading
+        self.code_display.update(f"[yellow]Loading {file_path}...[/yellow]")  # Show loading
 
         try:
             syntax = Syntax.from_path(
@@ -86,12 +90,10 @@ class CodeViewer(ScrollView):
                 indent_guides=True,
                 theme="github-dark",
             )
-            self.clear()
-            self.mount(Static(syntax, id="code"))
+            self.code_display.update(syntax)  # ✅ Correct way to update content inside ScrollView
 
         except Exception:
-            self.clear()
-            self.mount(Static(Traceback(theme="github-dark", width=None)))
+            self.code_display.update(Traceback(theme="github-dark", width=None))  # Show error
 
 
 ### 📌 DIRECTORY WATCHER (Auto-refreshes file list)
@@ -106,7 +108,7 @@ class DirectoryWatcher(FileSystemEventHandler):
         self.app.call_from_thread(self.app.refresh_tree)
 
 
-### 📌 MAIN APPLICATION (Now Uses `.tcss` Properly!)
+### 📌 MAIN APPLICATION (Fix for `ScrollView`)
 class CodeBrowserApp(App):
     """Main application with custom directory tree and code viewer."""
 
@@ -117,9 +119,9 @@ class CodeBrowserApp(App):
         """Create the UI layout."""
         yield Header()
         with Horizontal():
-            yield DirectoryTree("Directory", id="tree-view")  # Your Custom Tree
+            yield DirectoryTree("Directory", id="tree-view")  # ✅ Your Custom Tree
             with VerticalScroll(id="code-view"):
-                yield CodeViewer()
+                yield CodeViewer()  # ✅ Uses ScrollView correctly
         yield Footer()
 
     def refresh_tree(self):

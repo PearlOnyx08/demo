@@ -1,43 +1,28 @@
-from textual.app import App, ComposeResult
-from textual.widgets import Tree, ScrollView, Static
-from textual.reactive import reactive
-from textual.containers import Horizontal
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-from syntax import Syntax  # Importing Syntax for code highlighting
+from __future__ import annotations
+
 import os
+import sys
 import time
 import threading
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
-WATCH_DIR = "your_directory_path"  # Change this to your directory
+from rich.syntax import Syntax
+from rich.traceback import Traceback
 
-### 📌 CODE PREVIEW PANEL (Now Shows Errors & "Loading...")
-class CodeViewer(ScrollView):
-    """Scrollable widget to display syntax-highlighted code."""
-
-    def update_content(self, file_path):
-        """Update the content of the code viewer when a file is clicked."""
-        self.clear()
-        self.mount(Static(f"[yellow]Loading {file_path}...[/yellow]"))  # Indicate loading
-
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                code = f.read()
-
-            file_extension = file_path.split(".")[-1]  # Get file type
-            syntax = Syntax(code, file_extension, theme="monokai", line_numbers=True)
-
-            self.clear()
-            self.mount(Static(syntax))  # Ensure syntax highlighting appears
-
-        except Exception as e:
-            self.clear()
-            self.mount(Static(f"[red]Error loading file: {e}[/red]"))  # Show error message
+from textual.app import App, ComposeResult
+from textual.containers import Container, Horizontal, VerticalScroll
+from textual.reactive import reactive
+from textual.widgets import Tree, Static, ScrollView, Footer, Header
 
 
-### 📌 DIRECTORY TREE COMPONENT (Now Calls Code Viewer Correctly!)
+WATCH_DIR = "./" if len(sys.argv) < 2 else sys.argv[1]  # Allow command-line path
+
+
+### 📌 CUSTOM DIRECTORY TREE (Your Custom Tree)
 class DirectoryTree(Tree):
-    """Tree widget that displays a directory structure."""
+    """Custom directory tree widget."""
+
     path = reactive(WATCH_DIR)
 
     def on_mount(self):
@@ -54,7 +39,7 @@ class DirectoryTree(Tree):
         self.expand_all_nodes(root_node)
 
     def populate_tree(self, parent_node, path):
-        """Populate the tree with the contents of the directory."""
+        """Populate the tree with directories and files."""
         try:
             for item in sorted(os.listdir(path)):
                 item_path = os.path.join(path, item)
@@ -78,10 +63,35 @@ class DirectoryTree(Tree):
         self.build_tree(self.path)
 
     def on_node_selected(self, event):
-        """Handle file selection and update inline code preview."""
+        """Handle file selection and update the code preview."""
         file_path = event.node.data
         if os.path.isfile(file_path):
             self.app.show_file_content(file_path)  # Calls `CodeViewer.update_content()`
+
+
+### 📌 CODE VIEWER (Now Works Correctly!)
+class CodeViewer(ScrollView):
+    """Scrollable widget to display syntax-highlighted code."""
+
+    def update_content(self, file_path):
+        """Update the content of the code viewer when a file is clicked."""
+        self.clear()
+        self.mount(Static(f"[yellow]Loading {file_path}...[/yellow]"))  # Indicate loading
+
+        try:
+            syntax = Syntax.from_path(
+                file_path,
+                line_numbers=True,
+                word_wrap=False,
+                indent_guides=True,
+                theme="github-dark",
+            )
+            self.clear()
+            self.mount(Static(syntax))
+
+        except Exception:
+            self.clear()
+            self.mount(Static(Traceback(theme="github-dark", width=None)))
 
 
 ### 📌 DIRECTORY WATCHER (Auto-refreshes file list)
@@ -96,9 +106,9 @@ class DirectoryWatcher(FileSystemEventHandler):
         self.app.call_from_thread(self.app.refresh_tree)
 
 
-### 📌 MAIN APPLICATION (Now Works Correctly!)
-class DirectoryTreeApp(App):
-    """Main application with directory tree and inline code viewer."""
+### 📌 MAIN APPLICATION (Your Tree + CodeBrowser)
+class CodeBrowserApp(App):
+    """Main application with custom directory tree and code viewer."""
 
     CSS = """
     Horizontal {
@@ -116,11 +126,16 @@ class DirectoryTreeApp(App):
     }
     """
 
+    BINDINGS = [("q", "quit", "Quit")]
+
     def compose(self) -> ComposeResult:
         """Create the UI layout."""
+        yield Header()
         with Horizontal():
-            yield DirectoryTree("Directory")  # Left side: File tree
-            yield CodeViewer()  # Right side: Code viewer
+            yield DirectoryTree("Directory")  # Your Custom Tree
+            with VerticalScroll(id="code-view"):
+                yield CodeViewer()
+        yield Footer()
 
     def refresh_tree(self):
         """Refresh the directory tree when changes occur."""
@@ -152,4 +167,4 @@ class DirectoryTreeApp(App):
 
 
 if __name__ == "__main__":
-    DirectoryTreeApp().run()
+    CodeBrowserApp().run()

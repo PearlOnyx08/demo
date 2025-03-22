@@ -37,7 +37,7 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Fixed `__init__()` path issue)
+### 📌 DIRECTORY TREE (Fixed `watch_path` Call)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes when triggered externally."""
 
@@ -47,19 +47,19 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
         print(f"[DEBUG] Initializing DirectoryTree with path: {path}")
         super().__init__(path=path, name=name, id=id, classes=classes, disabled=disabled)  # ✅ FIXED: Pass `path` properly
 
-    async def on_mount(self):
+    def on_mount(self):
         """Initialize the directory tree."""
         try:
             print("[DEBUG] DirectoryTree mounted")
-            await self.watch_path()  # ✅ Properly await `watch_path()`
+            self.watch_path()  # ✅ FIXED: Just call it, no `await`
         except Exception as e:
             print(f"[ERROR] Failed to mount DirectoryTree: {e}")
 
-    async def refresh_tree(self):
+    def refresh_tree(self):
         """Rebuild the tree to reflect file changes."""
         try:
             print("[DEBUG] Full directory refresh triggered")
-            await self.reload()  # ✅ Use `reload()` instead of manually clearing
+            self.reload()  # ✅ Use `reload()` instead of manually clearing
         except Exception as e:
             print(f"[ERROR] Failed to reload DirectoryTree: {e}")
 
@@ -133,19 +133,19 @@ class CodeBrowserApp(App):
         viewer = self.query_one(CodeViewer)
         viewer.update_content(file_path)
 
-    async def refresh_tree(self):
+    def refresh_tree(self):
         """Externally refresh the directory tree when files change."""
         try:
             print("[DEBUG] External tree refresh triggered")
-            await self.tree.refresh_tree()
+            self.tree.refresh_tree()
         except Exception as e:
             print(f"[ERROR] Failed to refresh tree: {e}")
 
-    async def on_mount(self):
+    def on_mount(self):
         """Start directory watching here instead of `compose()`."""
         try:
             print("[DEBUG] App mounted")
-            await self.tree.watch_path()  # ✅ Properly await `watch_path()`
+            self.tree.watch_path()  # ✅ FIXED: Just call it, no `await`
             self.start_watching_directory()
         except Exception as e:
             print(f"[ERROR] Failed during on_mount: {e}")

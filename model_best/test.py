@@ -41,19 +41,10 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
 
     path = reactive(str(WATCH_DIR))  # Ensure it's a string
 
-    async def on_mount(self):
+    def on_mount(self):
         """Initialize the directory tree."""
         print("[DEBUG] DirectoryTree mounted")
-        await self.watch_path()  # ✅ FIXED: Ensure `watch_path` is awaited properly
-        self.refresh_tree()
-
-    async def watch_path(self):
-        """Ensures directory tree updates properly."""
-        has_cursor = self.cursor_node is not None
-        self.refresh_tree()
-        if has_cursor:
-            self.cursor_line = 0
-        self.scroll_to(0, 0, animate=False)
+        self.refresh_tree()  # ✅ FIXED: No `await` needed
 
     def refresh_tree(self):
         """Rebuild the entire tree from scratch to reflect file changes."""

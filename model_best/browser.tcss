@@ -1,0 +1,31 @@
+Screen {
+    &:inline {
+        height: 50vh;
+    }
+}
+
+#tree-view {
+    scrollbar-gutter: stable;
+    overflow: auto;
+    width: 30%;
+    height: 100%;
+    dock: left;
+    border: solid green;
+}
+
+CodeBrowser.-show-tree #tree-view {
+    display: block;
+    max-width: 50%;
+}
+
+#code-view {
+    overflow: auto scroll;
+    min-width: 70%;
+    border: solid blue;
+    padding: 1;
+}
+
+#code {
+    width: auto;
+    min-height: 100%;
+}

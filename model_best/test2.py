@@ -37,7 +37,7 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Fixed `watch_path` Call)
+### 📌 DIRECTORY TREE (Fixed Async `watch_path`)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes when triggered externally."""
 
@@ -51,15 +51,15 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
         """Initialize the directory tree."""
         try:
             print("[DEBUG] DirectoryTree mounted")
-            self.watch_path()  # ✅ FIXED: Just call it, no `await`
+            self.run_worker(self.watch_path())  # ✅ FIXED: Properly schedule async task
         except Exception as e:
             print(f"[ERROR] Failed to mount DirectoryTree: {e}")
 
-    def refresh_tree(self):
+    async def refresh_tree(self):
         """Rebuild the tree to reflect file changes."""
         try:
             print("[DEBUG] Full directory refresh triggered")
-            self.reload()  # ✅ Use `reload()` instead of manually clearing
+            await self.reload()  # ✅ Use `reload()` instead of manually clearing
         except Exception as e:
             print(f"[ERROR] Failed to reload DirectoryTree: {e}")
 
@@ -137,7 +137,7 @@ class CodeBrowserApp(App):
         """Externally refresh the directory tree when files change."""
         try:
             print("[DEBUG] External tree refresh triggered")
-            self.tree.refresh_tree()
+            self.tree.run_worker(self.tree.refresh_tree())  # ✅ FIXED: Use `run_worker()`
         except Exception as e:
             print(f"[ERROR] Failed to refresh tree: {e}")
 
@@ -145,7 +145,7 @@ class CodeBrowserApp(App):
         """Start directory watching here instead of `compose()`."""
         try:
             print("[DEBUG] App mounted")
-            self.tree.watch_path()  # ✅ FIXED: Just call it, no `await`
+            self.tree.run_worker(self.tree.watch_path())  # ✅ FIXED: Properly schedule async task
             self.start_watching_directory()
         except Exception as e:
             print(f"[ERROR] Failed during on_mount: {e}")

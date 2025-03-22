@@ -37,14 +37,15 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Final Fix for `path` Argument)
+### 📌 DIRECTORY TREE (Fixed `__init__()` path issue)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes when triggered externally."""
 
-    def __init__(self, path: str, **kwargs):
+    def __init__(self, path: str, name: str | None = None, id: str | None = None, 
+                 classes: str | None = None, disabled: bool = False):
         """Ensure path is passed during initialization."""
         print(f"[DEBUG] Initializing DirectoryTree with path: {path}")
-        super().__init__(path, **kwargs)  # ✅ FIXED: Pass `path` immediately
+        super().__init__(path=path, name=name, id=id, classes=classes, disabled=disabled)  # ✅ FIXED: Pass `path` properly
 
     async def on_mount(self):
         """Initialize the directory tree."""

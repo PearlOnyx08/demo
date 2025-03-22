@@ -14,7 +14,7 @@ from textual.containers import Horizontal, VerticalScroll, Vertical
 from textual.widgets import DirectoryTree, Static, Footer, Header, Log
 from textual.scroll_view import ScrollView  # Correct import for new versions
 
-WATCH_DIR = str(Path("./") if len(sys.argv) < 2 else Path(sys.argv[1]))  # Convert Path to string
+WATCH_DIR = Path("./") if len(sys.argv) < 2 else Path(sys.argv[1])  # Use Path object
 
 
 ### 📌 DEBUG CONSOLE (For Troubleshooting)
@@ -30,28 +30,20 @@ class DebugConsole(Log):
         self.write_line(message.rstrip())
 
 
-### 📌 DIRECTORY TREE (Properly Handles Path Updates)
+### 📌 DIRECTORY TREE (Correct `watch_path` and `set_path` usage)
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes when triggered externally."""
 
-    def on_mount(self):
-        """Initialize the directory tree with the correct path."""
+    async def on_mount(self):
+        """Initialize the directory tree."""
         print("[DEBUG] DirectoryTree mounted")
         self.set_path(WATCH_DIR)  # ✅ Correctly set path
-        self.run_worker(self.refresh_tree())  # ✅ Ensures refresh happens correctly
+        await self.watch_path()  # ✅ Properly await `watch_path()`
 
     async def refresh_tree(self):
         """Rebuild the tree to reflect file changes."""
         print("[DEBUG] Full directory refresh triggered")
-        self.clear()  # ✅ Clears the entire tree before reloading
-        self.set_path(WATCH_DIR)  # ✅ Reset the path
-        self.expand_all_nodes(self.root)
-
-    def expand_all_nodes(self, node):
-        node.expand()
-        for child in node.children:
-            child.expand()
-            self.expand_all_nodes(child)
+        await self.reload()  # ✅ Use `reload()` instead of manually clearing
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected):
         event.stop()
@@ -123,22 +115,23 @@ class CodeBrowserApp(App):
         viewer = self.query_one(CodeViewer)
         viewer.update_content(file_path)
 
-    def refresh_tree(self):
+    async def refresh_tree(self):
         """Externally refresh the directory tree when files change."""
         print("[DEBUG] External tree refresh triggered")
-        self.tree.run_worker(self.tree.refresh_tree())
+        await self.tree.refresh_tree()
 
-    def on_mount(self):
+    async def on_mount(self):
         """Start directory watching here instead of `compose()`."""
         print("[DEBUG] App mounted")
         self.tree.set_path(WATCH_DIR)  # ✅ Correct way to set path
+        await self.tree.watch_path()  # ✅ Properly await `watch_path()`
         self.start_watching_directory()
 
     def start_watching_directory(self):
         print("[DEBUG] Starting directory watcher")
         event_handler = DirectoryWatcher(self)
         self.observer = Observer()
-        self.observer.schedule(event_handler, WATCH_DIR, recursive=True)
+        self.observer.schedule(event_handler, str(WATCH_DIR), recursive=True)
         self.observer.start()
 
     def on_exit(self):

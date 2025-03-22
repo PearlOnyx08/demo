@@ -39,7 +39,7 @@ class DebugConsole(Log):
 class LiveUpdatingDirectoryTree(DirectoryTree):
     """Directory tree that refreshes when triggered externally."""
 
-    path = reactive(WATCH_DIR)
+    path = reactive(str(WATCH_DIR))  # Ensure it's a string
 
     def on_mount(self):
         """Initialize the directory tree."""
@@ -50,7 +50,7 @@ class LiveUpdatingDirectoryTree(DirectoryTree):
         """Rebuild the entire tree from scratch to reflect file changes."""
         print("[DEBUG] Full directory refresh triggered")
         self.clear()  # ✅ Clears the entire tree before reloading
-        self.build_tree(self.root, self.path)
+        self.build_tree(self.root, Path(self.path))  # Convert back to Path
         self.expand_all_nodes(self.root)  # ✅ Expand nodes after refresh
 
     def build_tree(self, parent, path):
@@ -141,7 +141,7 @@ class CodeBrowserApp(App):
         yield Header()
         with Vertical():
             with Horizontal():
-                self.tree = LiveUpdatingDirectoryTree(WATCH_DIR, id="tree-view")  # ✅ Now updates live!
+                self.tree = LiveUpdatingDirectoryTree(str(WATCH_DIR), id="tree-view")  # ✅ FIXED: Convert Path to string
                 yield self.tree
                 with VerticalScroll(id="code-view"):
                     yield CodeViewer()  # ✅ Uses ScrollView correctly
@@ -169,7 +169,7 @@ class CodeBrowserApp(App):
         print("[DEBUG] Starting directory watcher")
         event_handler = DirectoryWatcher(self)
         self.observer = Observer()
-        self.observer.schedule(event_handler, WATCH_DIR, recursive=True)
+        self.observer.schedule(event_handler, str(WATCH_DIR), recursive=True)  # ✅ FIXED: Convert Path to string
         self.observer.start()
 
     def on_exit(self):

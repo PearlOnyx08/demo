@@ -16,6 +16,10 @@ import threading
 class FilteredDirectoryTree(DirectoryTree):  # pylint:disable=too-many-ancestors
     """A `DirectoryTree` filtered for the markdown viewer."""
 
+    def __init__(self, path: Path) -> None:
+        super().__init__(path)
+        self.path = path
+
     def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
         """Filter the directory tree for the Markdown viewer.
 
@@ -75,20 +79,15 @@ class LocalFiles(NavigationPane):
         """Initialise the local files navigation pane."""
         super().__init__("Local")
         self.tree = FilteredDirectoryTree(Path("~").expanduser())
-        self.observer = None
+        self.observer = Observer()
+        self.start_watching()
 
     def compose(self) -> ComposeResult:
         """Compose the child widgets."""
         yield self.tree
-        self.start_watching()
 
     def start_watching(self):
         """Start watching the directory for changes."""
-        if self.observer:
-            self.observer.stop()
-            self.observer.join()
-        
-        self.observer = Observer()
         event_handler = DirectoryWatcher(self.tree)
         self.observer.schedule(event_handler, str(self.tree.path), recursive=True)
         thread = threading.Thread(target=self.observer.start, daemon=True)
@@ -100,7 +99,8 @@ class LocalFiles(NavigationPane):
         Args:
             path: The path to change to.
         """
-        self.tree.path = path
+        self.tree.set_path(path)
+        self.observer.unschedule_all()
         self.start_watching()
 
     def set_focus_within(self) -> None:
@@ -133,6 +133,5 @@ class LocalFiles(NavigationPane):
 
     def __del__(self):
         """Ensure observer stops when object is deleted."""
-        if self.observer:
-            self.observer.stop()
-            self.observer.join()
+        self.observer.stop()
+        self.observer.join()

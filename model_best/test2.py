@@ -11,7 +11,6 @@ from textual.widgets import DirectoryTree
 from ...utility import maybe_markdown
 from .navigation_pane import NavigationPane
 import threading
-import time
 
 
 class FilteredDirectoryTree(DirectoryTree):  # pylint:disable=too-many-ancestors
@@ -76,7 +75,7 @@ class LocalFiles(NavigationPane):
         """Initialise the local files navigation pane."""
         super().__init__("Local")
         self.tree = FilteredDirectoryTree(Path("~").expanduser())
-        self.observer = Observer()
+        self.observer = None
 
     def compose(self) -> ComposeResult:
         """Compose the child widgets."""
@@ -85,6 +84,11 @@ class LocalFiles(NavigationPane):
 
     def start_watching(self):
         """Start watching the directory for changes."""
+        if self.observer:
+            self.observer.stop()
+            self.observer.join()
+        
+        self.observer = Observer()
         event_handler = DirectoryWatcher(self.tree)
         self.observer.schedule(event_handler, str(self.tree.path), recursive=True)
         thread = threading.Thread(target=self.observer.start, daemon=True)
@@ -97,7 +101,6 @@ class LocalFiles(NavigationPane):
             path: The path to change to.
         """
         self.tree.path = path
-        self.observer.unschedule_all()
         self.start_watching()
 
     def set_focus_within(self) -> None:
@@ -130,5 +133,6 @@ class LocalFiles(NavigationPane):
 
     def __del__(self):
         """Ensure observer stops when object is deleted."""
-        self.observer.stop()
-        self.observer.join()
+        if self.observer:
+            self.observer.stop()
+            self.observer.join()

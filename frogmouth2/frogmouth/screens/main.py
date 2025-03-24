@@ -13,7 +13,7 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.events import Paste
 from textual.screen import Screen
-from textual.widgets import Footer, TabbedContent, TabPane, Markdown, Static, Select, Button, ProgressBar, LoadingIndicator
+from textual.widgets import Footer, TabbedContent, TabPane, Markdown, Static, Select, Button, ProgressBar, LoadingIndicator, Input
 from textual.widgets import RadioSet, RadioButton, Label
 from .. import __version__
 from ..data import load_config, load_history, save_config, save_history
@@ -64,6 +64,9 @@ class Main(Screen[None]):
                             RadioButton("C++", id="lang-cpp", value=True),
                             id="code-lang-radios"
                         )
+                        # Inside TabPane("Unit Tests")
+                        yield Label("Unit Test Save Path:", id="save-path-label")
+                        yield Input(placeholder="Enter save path, e.g. /home/spenser/test.cpp", id="save-path-input")
                         yield Button("Generate Unit Test", id="generate-button")
                         yield Button("Reset", id="reset-button")
                         yield LoadingIndicator(id="spinner")
@@ -220,7 +223,8 @@ class Main(Screen[None]):
 
             print("[API PLACEHOLDER] Unit test generation complete")
             viewer = self.query_one("#unit-test-viewer", Viewer)
-            file_path = Path("/home/spenser/test.cpp")
+            save_path = self.query_one("#save-path-input", Input).value.strip()
+            file_path = Path(save_path or "/tmp/default_test.cpp")  # Fallback if empty
 
             if file_path.exists():
                 content = file_path.read_text(encoding="utf-8")
